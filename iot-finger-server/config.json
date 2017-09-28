@@ -1,0 +1,3 @@
+{
+  "mqttBrokerUrl":"mqtt://broker.hivemq.com"
+}
