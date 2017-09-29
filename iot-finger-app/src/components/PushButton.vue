@@ -1,17 +1,28 @@
 <template>
-  <div class="push-button">
-    <div v-if="msg" class="notification is-primary">
-      {{msg}}
-    </div>
-    <button @mousedown="mousedown($event)" @mouseup="mouseup($event)">
-      <icon name="hand-o-down" scale="10"></icon>
-    </button>
+  <div>
+    <section class="section">
+      <div v-if="msg" class="notification is-primary">
+        {{msg}}
+      </div>
+      <i v-if="msg === ''" v-bind:class="{ 'fa-spin': pressed }" class="fa fa-spinner fa-5x"></i>
+    </section>
+    <section class="section">
+      <span class="tag is-info">{{timer}} seconds</span>
+    </section>
+    <section class="section">
+      <div class="push-button content">
+        <button id="button">
+          <i class="fa fa-hand-o-down fa-5x"></i>
+        </button>
+      </div>
+    </section>
   </div>
 </template>
 
 <script>
-import Icon from 'vue-awesome/components/Icon';
 import axios from 'axios';
+import Hammer from 'hammerjs'
+
 
 export default {
   name: 'push-button',
@@ -19,23 +30,49 @@ export default {
     return {
       data: null,
       msg: '',
-      mouseDownTimeStamp: null
+      timeInterval: null,
+      timer: 0,
+      pressed: false,
+      pushButtonDoneTopic: 'iotfinger/pushbutton/done'
     }
   },
-  components: {
-    Icon
+  created() {
+    this.$options.sockets[this.pushButtonDoneTopic] = (msg) => {
+      this.msg = msg.data;
+    }
+  },
+  mounted() {
+    this.setupTouch();
   },
   methods: {
-    mousedown(event){
-      this.mouseDownTimeStamp = event.timeStamp;
+    setupTouch() {
+      const button = document.getElementById('button');
+      const mc = new Hammer(button);
+      mc.on("press pressup", ev => {
+        console.log(ev.type);
+        if (ev.type === 'press') {
+          this.press();
+        }
+        if (ev.type === 'pressup') {
+          this.pressup();
+        }
+      });
     },
-    mouseup(event){
-      const duration = ( event.timeStamp - this.mouseDownTimeStamp ) / 1000;
-      this.msg = duration;
-      publish(duration);
+    press() {
+      clearInterval(this.timeInterval);
+      this.timer = 0;
+      this.pressed = true;
+      this.timeInterval = setInterval(() => {
+        this.timer += 1;
+      }, 1000);
+    },
+    pressup() {
+      clearInterval(this.timeInterval);
+      this.publish(this.timer);
+      this.pressed = false;
     },
     publish(duration) {
-      axios.post(`${process.env.SERVER_URL}/pushbutton/start`, {duration: duration})
+      axios.post(`${process.env.SERVER_URL}/pushbutton/start`, { duration: duration })
         .then(response => {
           this.setMsg(response.statusText);
         }).catch(error => {
@@ -56,6 +93,12 @@ export default {
   cursor: pointer;
   overflow: hidden;
   outline: none;
+}
+
+.push-button-spinner {
+  color: #fff;
+  text-shadow: 1px 1px 1px #ccc;
+  font-size: 1.5em;
 }
 </style>
 
